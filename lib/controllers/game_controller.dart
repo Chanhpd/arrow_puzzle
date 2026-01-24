@@ -145,15 +145,11 @@ class GameController extends ChangeNotifier {
     _animatingArrow = arrow;
     _animationPath = List<CellPosition>.from(arrow.segments);
 
-    // Phase 1: Di chuyển cho đến khi head chạm edge
+    // Di chuyển như rắn: head tiếp tục đi, tail theo sau
+    // Khi cell nào ra ngoài board thì xóa cell đó
     while (arrow.segments.isNotEmpty) {
       final head = arrow.getHead();
       final newHead = CellPosition(head.row + delta.row, head.col + delta.col);
-
-      // Nếu head ra ngoài board - bắt đầu escape animation
-      if (!_board!.isInBounds(newHead)) {
-        break;
-      }
 
       // Animate smooth movement
       for (double progress = 0.0; progress <= 1.0; progress += 0.1) {
@@ -165,29 +161,21 @@ class GameController extends ChangeNotifier {
       // Di chuyển kiểu rắn: xóa đuôi, thêm head mới
       final newSegments = List<CellPosition>.from(arrow.segments);
       newSegments.removeAt(0); // Xóa đuôi
-      newSegments.add(newHead); // Thêm head mới
 
-      arrow.segments = newSegments;
-      _animationPath = newSegments;
-      _board!.updateArrow(arrow);
-      _animationProgress = 0.0;
-      notifyListeners();
-    }
-
-    // Phase 2: Từng cell biến mất từ đuôi
-    while (arrow.segments.isNotEmpty) {
-      // Fade out animation
-      for (double progress = 0.0; progress <= 1.0; progress += 0.1) {
-        _animationProgress = progress;
-        notifyListeners();
-        await Future.delayed(const Duration(milliseconds: 3));
+      // Chỉ thêm head mới nếu head hiện tại vẫn còn trong board
+      // Nếu head đã ra ngoài thì chỉ xóa đuôi (arrow đang thoát ra)
+      if (_board!.isInBounds(head)) {
+        newSegments.add(newHead); // Thêm head mới
       }
 
-      arrow.segments.removeAt(0);
-      _animationPath = List<CellPosition>.from(arrow.segments);
+      arrow.segments = newSegments;
+      _animationPath = List<CellPosition>.from(newSegments);
       _board!.updateArrow(arrow);
       _animationProgress = 0.0;
       notifyListeners();
+
+      // Nếu không còn segments nào, thoát khỏi loop
+      if (arrow.segments.isEmpty) break;
     }
 
     // Xóa arrow hoàn toàn

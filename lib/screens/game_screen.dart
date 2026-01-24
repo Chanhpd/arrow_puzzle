@@ -7,7 +7,9 @@ import '../services/puzzle_solver.dart';
 
 /// Main game screen
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key});
+  final int? initialLevel;
+  
+  const GameScreen({super.key, this.initialLevel});
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -17,9 +19,9 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
-    // Tạo level đầu tiên
+    // Tạo level với level number được truyền vào
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<GameController>().generateLevel();
+      context.read<GameController>().generateLevel(level: widget.initialLevel);
     });
   }
 
@@ -27,10 +29,21 @@ class _GameScreenState extends State<GameScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Arrow Puzzle Game'),
+        title: Consumer<GameController>(
+          builder: (context, controller, child) {
+            return Text('Level ${controller.currentLevel}');
+          },
+        ),
         centerTitle: true,
         backgroundColor: Colors.blue.shade700,
         foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          tooltip: 'Quay lại chọn level',
+        ),
         actions: [
           // Debug button - check solvability
           IconButton(
@@ -64,9 +77,9 @@ class _GameScreenState extends State<GameScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              context.read<GameController>().resetGame();
+              context.read<GameController>().generateLevel(level: widget.initialLevel);
             },
-            tooltip: 'Reset to Level 1',
+            tooltip: 'Generate lại level này',
           ),
         ],
       ),
