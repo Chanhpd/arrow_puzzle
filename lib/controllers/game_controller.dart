@@ -36,20 +36,32 @@ class GameController extends ChangeNotifier {
     if (level <= 5) {
       rows = cols = 10;
       numArrows = 10 + (level * 2); // 12, 14, 16, 18, 20
-      density = 0.60 + (level * 0.02); // 0.62 - 0.70
+      density = 0.55 + (level * 0.02); // 0.57 - 0.65
     } else if (level <= 10) {
       rows = cols = 12;
       numArrows = 18 + ((level - 5) * 2); // 20, 22, 24, 26, 28
-      density = 0.65 + ((level - 5) * 0.02); // 0.67 - 0.75
+      density = 0.60 + ((level - 5) * 0.01); // 0.61 - 0.65
     } else if (level <= 15) {
       rows = cols = 14;
-      numArrows = 24 + ((level - 10) * 3); // 27, 30, 33, 36, 39
-      density = 0.68 + ((level - 10) * 0.02); // 0.70 - 0.78
-    } else {
+      numArrows = 22 + ((level - 10) * 2); // 24, 26, 28, 30, 32
+      density = 0.58 + ((level - 10) * 0.015); // 0.595 - 0.655
+    } else if (level <= 50) {
       rows = cols = 16;
-      numArrows = 35 + ((level - 15) * 3); // 38, 41, 44...
-      density = 0.70 + ((level - 15) * 0.01); // 0.71+
-      if (density > 0.85) density = 0.85; // Cap at 85%
+      numArrows = 28 + ((level - 15) * 2); // 30, 32, 34... up to 98
+      density = 0.60 + ((level - 15) * 0.005); // 0.605 - 0.775
+      if (density > 0.70) density = 0.70; // Cap at 70%
+    } else if (level <= 100) {
+      rows = cols = 16;
+      numArrows = 35 + ((level - 50)); // 36 to 85
+      density = 0.65 + ((level - 50) * 0.003); // 0.653 - 0.803
+      if (density > 0.75) density = 0.75; // Cap at 75%
+    } else {
+      // Level 101-200: Harder configurations
+      rows = cols = 16;
+      numArrows = 40 + ((level - 100)); // 41 to 140
+      density = 0.70 + ((level - 100) * 0.001); // 0.701 - 0.800
+      if (density > 0.80) density = 0.80; // Cap at 80%
+      if (numArrows > 100) numArrows = 100; // Cap arrows
     }
 
     return {

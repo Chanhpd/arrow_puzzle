@@ -8,7 +8,7 @@ import '../services/puzzle_solver.dart';
 /// Main game screen
 class GameScreen extends StatefulWidget {
   final int? initialLevel;
-  
+
   const GameScreen({super.key, this.initialLevel});
 
   @override
@@ -77,7 +77,9 @@ class _GameScreenState extends State<GameScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              context.read<GameController>().generateLevel(level: widget.initialLevel);
+              context.read<GameController>().generateLevel(
+                level: widget.initialLevel,
+              );
             },
             tooltip: 'Generate lại level này',
           ),

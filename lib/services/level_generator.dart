@@ -15,11 +15,15 @@ class LevelGenerator {
     required int cols,
     required int numArrows,
     double densityTarget = 0.75,
-    int maxRetries = 100, // Tăng lên 100 để đảm bảo tìm được solvable board
+    int maxRetries = 150, // Tăng lên 150 để có nhiều cơ hội hơn
   }) {
     int retryCount = 0;
     int fastCheckFails = 0;
     int fullCheckFails = 0;
+
+    // Điều chỉnh maxStates dựa trên độ phức tạp
+    final complexity = (rows * cols * numArrows) ~/ 100;
+    final maxStates = (10000 + complexity * 500).clamp(8000, 20000);
 
     while (retryCount < maxRetries) {
       final board = _generateBoardInternal(
@@ -33,7 +37,7 @@ class LevelGenerator {
       if (!PuzzleSolver.hasImmediateMove(board)) {
         fastCheckFails++;
         retryCount++;
-        if (retryCount % 20 == 0) {
+        if (retryCount % 30 == 0) {
           print(
             '⚠️ Fast check failed $fastCheckFails times, retrying... ($retryCount/$maxRetries)',
           );
@@ -45,22 +49,21 @@ class LevelGenerator {
       if (PuzzleSolver.hasDeadlock(board)) {
         fastCheckFails++;
         retryCount++;
-        if (retryCount % 20 == 0) {
+        if (retryCount % 30 == 0) {
           print('⚠️ Deadlock detected, retrying... ($retryCount/$maxRetries)');
         }
         continue;
       }
 
-      // Step 3: Full solvability check (BFS) với maxStates thấp hơn cho fast generation
-      // Chỉ chạy full check khi fast checks pass
-      if (PuzzleSolver.isSolvable(board, maxStates: 8000)) {
-        print('✅ Generated solvable puzzle after $retryCount retries');
+      // Step 3: Full solvability check (BFS) với maxStates động
+      if (PuzzleSolver.isSolvable(board, maxStates: maxStates)) {
+        print('✅ Generated solvable puzzle after $retryCount retries (maxStates: $maxStates)');
         return board;
       }
 
       fullCheckFails++;
       retryCount++;
-      if (retryCount % 20 == 0) {
+      if (retryCount % 30 == 0) {
         print(
           '⚠️ Full solvability check failed $fullCheckFails times, retrying... ($retryCount/$maxRetries)',
         );
