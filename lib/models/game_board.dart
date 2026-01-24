@@ -71,9 +71,9 @@ class GameBoard {
     );
   }
 
-  /// Xóa arrow khỏi board
+  /// Xóa arrow khỏi board (by ID để tránh reference issues)
   void removeArrow(ComplexArrow arrow) {
-    arrows.remove(arrow);
+    arrows.removeWhere((a) => a.id == arrow.id);
     _populateGridFromArrows();
   }
 
