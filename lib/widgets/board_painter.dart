@@ -23,31 +23,24 @@ class BoardPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    _drawGrid(canvas);
+    _drawDots(canvas);
     _drawArrows(canvas);
   }
 
-  /// Vẽ lưới
-  void _drawGrid(Canvas canvas) {
-    final paint = Paint()
-      ..color = Colors.grey.shade300
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke;
+  /// Vẽ lưới dots thay vì grid lines
+  void _drawDots(Canvas canvas) {
+    final dotPaint = Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.fill;
 
+    final dotRadius = cellSize * 0.06; // Dot nhỏ ~6% của cell size
+
+    // Vẽ dots tại mỗi intersection point
     for (int row = 0; row <= board.rows; row++) {
-      canvas.drawLine(
-        Offset(0, row * cellSize),
-        Offset(board.cols * cellSize, row * cellSize),
-        paint,
-      );
-    }
-
-    for (int col = 0; col <= board.cols; col++) {
-      canvas.drawLine(
-        Offset(col * cellSize, 0),
-        Offset(col * cellSize, board.rows * cellSize),
-        paint,
-      );
+      for (int col = 0; col <= board.cols; col++) {
+        final center = Offset(col * cellSize, row * cellSize);
+        canvas.drawCircle(center, dotRadius, dotPaint);
+      }
     }
   }
 
@@ -58,36 +51,12 @@ class BoardPainter extends CustomPainter {
     }
   }
 
-  /// Generate màu unique cho mỗi arrow
+  /// Tất cả arrows đều màu đen
   Color _getArrowColor(ComplexArrow arrow) {
-    if (arrow.isExit) {
-      return Colors.red.shade400; // Exit arrow vẫn màu đỏ
-    }
-
-    // Danh sách màu đẹp và dễ phân biệt
-    final colors = [
-      Colors.blue.shade400,
-      Colors.green.shade400,
-      Colors.purple.shade400,
-      Colors.orange.shade400,
-      Colors.teal.shade400,
-      Colors.pink.shade400,
-      Colors.indigo.shade400,
-      Colors.amber.shade600,
-      Colors.cyan.shade400,
-      Colors.lime.shade600,
-      Colors.deepOrange.shade400,
-      Colors.lightGreen.shade500,
-      Colors.deepPurple.shade400,
-      Colors.brown.shade400,
-      Colors.blueGrey.shade400,
-    ];
-
-    // Dùng arrow ID để chọn màu (consistent)
-    return colors[arrow.id % colors.length];
+    return Colors.black;
   }
 
-  /// Vẽ 1 arrow với smooth animation
+  /// Vẽ 1 arrow với smooth path chạy trên dots
   void _drawSingleArrow(
     Canvas canvas,
     ComplexArrow arrow, {
@@ -107,98 +76,151 @@ class BoardPainter extends CustomPainter {
     // Apply opacity cho fade animation
     arrowColor = arrowColor.withOpacity(opacity);
 
-    // Vẽ body của arrow với animation offset
-    final bodyPaint = Paint()
-      ..color = arrowColor
-      ..style = PaintingStyle.fill;
+    if (arrow.segments.isEmpty) return;
 
-    // Border để phân biệt rõ hơn
-    final borderPaint = Paint()
-      ..color = Colors.white.withOpacity(0.8 * opacity)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+    // Tính animation offset cho head
+    double animOffsetX = 0;
+    double animOffsetY = 0;
+
+    if (isAnimating && animationPath != null && animationPath!.isNotEmpty) {
+      final delta = arrow.direction.delta;
+      animOffsetX = delta.col * cellSize * animationProgress;
+      animOffsetY = delta.row * cellSize * animationProgress;
+    }
+
+    // Tạo path nối các segments
+    final path = Path();
+    final List<Offset> points = [];
 
     for (int i = 0; i < arrow.segments.length; i++) {
       final pos = arrow.segments[i];
       double offsetX = 0;
       double offsetY = 0;
 
-      // Nếu đang animate và là head, apply movement offset
-      if (isAnimating &&
-          i == arrow.segments.length - 1 &&
-          animationPath != null &&
-          animationPath!.isNotEmpty) {
-        final delta = arrow.direction.delta;
-        offsetX = delta.col * cellSize * animationProgress;
-        offsetY = delta.row * cellSize * animationProgress;
+      // Chỉ head có animation offset
+      if (isAnimating && i == arrow.segments.length - 1) {
+        offsetX = animOffsetX;
+        offsetY = animOffsetY;
       }
 
-      final rect = Rect.fromLTWH(
-        pos.col * cellSize + 2 + offsetX,
-        pos.row * cellSize + 2 + offsetY,
-        cellSize - 4,
-        cellSize - 4,
+      points.add(
+        Offset(pos.col * cellSize + offsetX, pos.row * cellSize + offsetY),
       );
+    }
 
-      final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(4));
+    // Vẽ đường path với shadow khi animate
+    if (isAnimating) {
+      final shadowPaint = Paint()
+        ..color = Colors.black.withOpacity(0.15 * opacity)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = cellSize * 0.25
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
 
-      // Thêm shadow effect khi animate
-      if (isAnimating) {
-        final shadowPaint = Paint()
-          ..color = Colors.black.withOpacity(0.2 * opacity)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(
-            rect.shift(const Offset(2, 2)),
-            const Radius.circular(4),
-          ),
-          shadowPaint,
-        );
+      final shadowPath = Path();
+      if (points.isNotEmpty) {
+        shadowPath.moveTo(points[0].dx + 2, points[0].dy + 2);
+        for (int i = 1; i < points.length; i++) {
+          shadowPath.lineTo(points[i].dx + 2, points[i].dy + 2);
+        }
       }
-
-      // Vẽ body
-      canvas.drawRRect(rrect, bodyPaint);
-
-      // Vẽ border trắng để phân biệt
-      canvas.drawRRect(rrect, borderPaint);
+      canvas.drawPath(shadowPath, shadowPaint);
     }
 
-    // Vẽ ký hiệu direction ở head
+    // Vẽ border (outline trắng)
+    final borderPaint = Paint()
+      ..color = Colors.white.withOpacity(0.3 * opacity)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = cellSize * 0.20
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    if (points.isNotEmpty) {
+      path.moveTo(points[0].dx, points[0].dy);
+      for (int i = 1; i < points.length; i++) {
+        path.lineTo(points[i].dx, points[i].dy);
+      }
+    }
+
+    canvas.drawPath(path, borderPaint);
+
+    // Vẽ body chính của arrow
+    final bodyPaint = Paint()
+      ..color = arrowColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = cellSize * 0.16
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    canvas.drawPath(path, bodyPaint);
+
+    // Vẽ arrow head (triangle) tại head
     final head = arrow.getHead();
-    double headOffsetX = 0;
-    double headOffsetY = 0;
+    final headCenter = Offset(
+      head.col * cellSize + animOffsetX,
+      head.row * cellSize + animOffsetY,
+    );
 
-    if (isAnimating && animationPath != null && animationPath!.isNotEmpty) {
-      final delta = arrow.direction.delta;
-      headOffsetX = delta.col * cellSize * animationProgress;
-      headOffsetY = delta.row * cellSize * animationProgress;
+    _drawArrowHead(canvas, headCenter, arrow.direction, arrowColor, opacity);
+  }
+
+  /// Vẽ arrow head dạng triangle
+  void _drawArrowHead(
+    Canvas canvas,
+    Offset position,
+    dynamic direction,
+    Color color,
+    double opacity,
+  ) {
+    final arrowSize = cellSize * 0.35; // Kích thước arrow head
+    final arrowPath = Path();
+
+    // Xác định hướng và vẽ triangle
+    final delta = direction.delta;
+
+    // Tính góc xoay dựa trên hướng
+    double angle = 0;
+    if (delta.col == 1 && delta.row == 0) {
+      // Right
+      angle = 0;
+    } else if (delta.col == -1 && delta.row == 0) {
+      // Left
+      angle = 3.14159; // 180 degrees
+    } else if (delta.col == 0 && delta.row == 1) {
+      // Down
+      angle = 3.14159 / 2; // 90 degrees
+    } else if (delta.col == 0 && delta.row == -1) {
+      // Up
+      angle = -3.14159 / 2; // -90 degrees
     }
 
-    final symbolCenter = Offset(
-      head.col * cellSize + cellSize / 2 + headOffsetX,
-      head.row * cellSize + cellSize / 2 + headOffsetY,
-    );
+    // Vẽ triangle pointing theo hướng
+    canvas.save();
+    canvas.translate(position.dx, position.dy);
+    canvas.rotate(angle);
 
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: arrow.direction.symbol,
-        style: TextStyle(
-          fontSize: cellSize * 0.6,
-          color: Colors.white.withOpacity(opacity),
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    );
+    // Triangle shape: pointing right khi angle = 0
+    arrowPath.moveTo(arrowSize * 0.6, 0); // Tip
+    arrowPath.lineTo(-arrowSize * 0.4, -arrowSize * 0.5); // Top corner
+    arrowPath.lineTo(-arrowSize * 0.4, arrowSize * 0.5); // Bottom corner
+    arrowPath.close();
 
-    textPainter.layout();
-    textPainter.paint(
-      canvas,
-      Offset(
-        symbolCenter.dx - textPainter.width / 2,
-        symbolCenter.dy - textPainter.height / 2,
-      ),
-    );
+    // Vẽ border trắng
+    final borderPaint = Paint()
+      ..color = Colors.white.withOpacity(0.3 * opacity)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = cellSize * 0.05
+      ..strokeJoin = StrokeJoin.miter;
+    canvas.drawPath(arrowPath, borderPaint);
+
+    // Vẽ fill
+    final fillPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(arrowPath, fillPaint);
+
+    canvas.restore();
   }
 
   @override
