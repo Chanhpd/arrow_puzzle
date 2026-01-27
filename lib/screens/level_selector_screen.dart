@@ -262,16 +262,7 @@ class LevelSelectorScreen extends StatelessWidget {
           child: Stack(
             children: [
               // Checkmark for completed levels
-              if (isCompleted)
-                Positioned(
-                  top: 2,
-                  right: 2,
-                  child: Icon(
-                    Icons.check_circle,
-                    size: 14,
-                    color: Colors.yellow.shade700,
-                  ),
-                ),
+
               // Level number and info
               Center(
                 child: Column(
@@ -294,21 +285,7 @@ class LevelSelectorScreen extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    if (isCompleted && stars > 0)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: List.generate(
-                            3,
-                            (index) => Icon(
-                              index < stars ? Icons.star : Icons.star_border,
-                              size: 8,
-                              color: Colors.yellow.shade300,
-                            ),
-                          ),
-                        ),
-                      ),
+
                   ],
                 ),
               ),
