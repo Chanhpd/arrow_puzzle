@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:puzzle/core/utils/logger.dart';
 import 'package:puzzle/services/level_generator.dart';
 import 'package:puzzle/services/puzzle_solver.dart';
 
@@ -9,7 +10,9 @@ void main() {
     int totalAttempts = 20;
 
     for (int i = 0; i < totalAttempts; i++) {
-      print('\n========== Generating Board ${i + 1}/$totalAttempts ==========');
+      logger.i(
+          '\n========== Generating Board ${i + 1}/$totalAttempts =========='
+      );
 
       final board = generator.generateBoard(
         rows: 10,
@@ -19,29 +22,36 @@ void main() {
         maxRetries: 100,
       );
 
-      print('Board ${i + 1}: ${board.arrows.length} arrows');
+      logger.d('Board ${i + 1}: ${board.arrows.length} arrows');
 
       // Verify solvable
-      final solvable = PuzzleSolver.isSolvable(board, maxStates: 10000);
-      print('Solvable: $solvable');
+      final solvable = PuzzleSolver.isSolvable(
+        board,
+        maxStates: 10000,
+      );
 
       if (solvable) {
+        logger.i('Solvable: true');
         successCount++;
       } else {
-        print('❌ FAIL: Board ${i + 1} is NOT solvable!');
-        print('Arrows:');
+        logger.e('❌ FAIL: Board ${i + 1} is NOT solvable');
+
+        logger.e('Arrows detail:');
         for (var arrow in board.arrows) {
-          print(
-            '  Arrow ${arrow.id}: ${arrow.segments.length} segments, direction=${arrow.direction}',
+          logger.e(
+            'Arrow ${arrow.id}: '
+                '${arrow.segments.length} segments, '
+                'direction=${arrow.direction}',
           );
         }
       }
     }
 
-    print('\n========== RESULTS ==========');
-    print('Success: $successCount/$totalAttempts');
-    print(
-      'Success rate: ${(successCount / totalAttempts * 100).toStringAsFixed(1)}%',
+    logger.i('\n========== RESULTS ==========');
+    logger.i('Success: $successCount/$totalAttempts');
+    logger.i(
+      'Success rate: '
+          '${(successCount / totalAttempts * 100).toStringAsFixed(1)}%',
     );
 
     expect(

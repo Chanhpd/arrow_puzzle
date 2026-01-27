@@ -1,4 +1,5 @@
 import 'dart:math';
+import '../core/utils/logger.dart';
 import '../models/cell_position.dart';
 import '../models/complex_arrow.dart';
 import '../models/game_board.dart';
@@ -38,7 +39,7 @@ class LevelGenerator {
         fastCheckFails++;
         retryCount++;
         if (retryCount % 30 == 0) {
-          print(
+          logger.w(
             '⚠️ Fast check failed $fastCheckFails times, retrying... ($retryCount/$maxRetries)',
           );
         }
@@ -50,29 +51,29 @@ class LevelGenerator {
         fastCheckFails++;
         retryCount++;
         if (retryCount % 30 == 0) {
-          print('⚠️ Deadlock detected, retrying... ($retryCount/$maxRetries)');
+          logger.w('⚠️ Deadlock detected, retrying... ($retryCount/$maxRetries)');
         }
         continue;
       }
 
       // Step 3: Full solvability check (BFS) với maxStates động
       if (PuzzleSolver.isSolvable(board, maxStates: maxStates)) {
-        print('✅ Generated solvable puzzle after $retryCount retries (maxStates: $maxStates)');
+        logger.i('✅ Generated solvable puzzle after $retryCount retries (maxStates: $maxStates)');
         return board;
       }
 
       fullCheckFails++;
       retryCount++;
       if (retryCount % 30 == 0) {
-        print(
+        logger.w(
           '⚠️ Full solvability check failed $fullCheckFails times, retrying... ($retryCount/$maxRetries)',
         );
       }
     }
 
     // Fallback: Tạo board đơn giản hơn với nhiều retries
-    print('❌ Could not generate solvable puzzle after $maxRetries retries');
-    print('🔄 Trying fallback: simpler board...');
+    logger.e('❌ Could not generate solvable puzzle after $maxRetries retries');
+    logger.i('🔄 Trying fallback: simpler board...');
 
     // Retry fallback nhiều lần với số arrows giảm dần
     for (int simplicity = 0; simplicity < 3; simplicity++) {
@@ -86,13 +87,13 @@ class LevelGenerator {
       );
 
       if (PuzzleSolver.isSolvable(fallbackBoard, maxStates: 5000)) {
-        print('✅ Fallback board is solvable with $fallbackArrows arrows');
+        logger.i('✅ Fallback board is solvable with $fallbackArrows arrows');
         return fallbackBoard;
       }
     }
 
     // Last resort: tạo board cực kỳ đơn giản
-    print('⚠️ Using ultra-simple fallback board');
+    logger.w('⚠️ Using ultra-simple fallback board');
     return _generateSimpleFallbackBoard(rows: rows, cols: cols, numArrows: 3);
   }
 
@@ -517,7 +518,7 @@ class LevelGenerator {
       attempts++;
     }
 
-    print(
+    logger.i(
       '🔄 Fallback board created with ${board.arrows.length} simple arrows',
     );
     return board;

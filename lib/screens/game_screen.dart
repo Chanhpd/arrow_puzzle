@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../controllers/game_controller.dart';
 import '../models/cell_position.dart';
 import '../widgets/board_painter.dart';
-import '../services/puzzle_solver.dart';
 
 /// Main game screen
 class GameScreen extends StatefulWidget {

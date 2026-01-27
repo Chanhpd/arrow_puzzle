@@ -80,7 +80,7 @@ class LevelSelectorScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -234,7 +234,6 @@ class LevelSelectorScreen extends StatelessWidget {
 
     // TODO: Kiểm tra completed status từ saved data
     final isCompleted = false; // Tạm thời false, sau sẽ load từ storage
-    final stars = 0; // 0-3 stars earned
 
     return Card(
       elevation: 2,
@@ -261,7 +260,7 @@ class LevelSelectorScreen extends StatelessWidget {
           ),
           child: Stack(
             children: [
-              // Checkmark for completed levels
+              // Level content
 
               // Level number and info
               Center(

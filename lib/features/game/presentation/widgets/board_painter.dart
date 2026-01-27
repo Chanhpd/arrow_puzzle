@@ -1,18 +1,9 @@
 import 'package:flutter/material.dart';
-import '../models/game_board.dart';
-import '../models/complex_arrow.dart';
-import '../models/cell_position.dart';
+import '../../domain/entities/entities.dart';
 
 /// CustomPainter để vẽ game board
 class BoardPainter extends CustomPainter {
-  final GameBoard board;
-  final double cellSize;
-  final ComplexArrow? selectedArrow;
-  final ComplexArrow? animatingArrow;
-  final List<CellPosition>? animationPath;
-  final double animationProgress;
-
-  BoardPainter({
+  const BoardPainter({
     required this.board,
     required this.cellSize,
     this.selectedArrow,
@@ -20,6 +11,13 @@ class BoardPainter extends CustomPainter {
     this.animationPath,
     this.animationProgress = 0.0,
   });
+
+  final GameBoard board;
+  final double cellSize;
+  final ComplexArrow? selectedArrow;
+  final ComplexArrow? animatingArrow;
+  final List<CellPosition>? animationPath;
+  final double animationProgress;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -33,9 +31,8 @@ class BoardPainter extends CustomPainter {
       ..color = Colors.black
       ..style = PaintingStyle.fill;
 
-    final dotRadius = cellSize * 0.06; // Dot nhỏ ~6% của cell size
+    final dotRadius = cellSize * 0.06;
 
-    // Vẽ dots tại mỗi intersection point
     for (int row = 0; row <= board.rows; row++) {
       for (int col = 0; col <= board.cols; col++) {
         final center = Offset(col * cellSize, row * cellSize);
@@ -56,7 +53,7 @@ class BoardPainter extends CustomPainter {
     return Colors.black;
   }
 
-  /// Vẽ 1 arrow với smooth path chạy trên dots
+  /// Vẽ 1 arrow với smooth path
   void _drawSingleArrow(
     Canvas canvas,
     ComplexArrow arrow, {
@@ -65,20 +62,16 @@ class BoardPainter extends CustomPainter {
     final isSelected = arrow.id == selectedArrow?.id;
     final isAnimating = arrow.id == animatingArrow?.id;
 
-    // Màu arrow - mỗi arrow có màu riêng
     Color arrowColor = _getArrowColor(arrow);
 
-    // Làm sáng hơn khi select/animate
     if (isSelected || isAnimating) {
       arrowColor = Color.lerp(arrowColor, Colors.white, 0.3)!;
     }
 
-    // Apply opacity cho fade animation
     arrowColor = arrowColor.withValues(alpha: opacity);
 
     if (arrow.segments.isEmpty) return;
 
-    // Tính animation offset cho head
     double animOffsetX = 0;
     double animOffsetY = 0;
 
@@ -88,7 +81,6 @@ class BoardPainter extends CustomPainter {
       animOffsetY = delta.row * cellSize * animationProgress;
     }
 
-    // Tạo path nối các segments
     final path = Path();
     final List<Offset> points = [];
 
@@ -97,7 +89,6 @@ class BoardPainter extends CustomPainter {
       double offsetX = 0;
       double offsetY = 0;
 
-      // Chỉ head có animation offset
       if (isAnimating && i == arrow.segments.length - 1) {
         offsetX = animOffsetX;
         offsetY = animOffsetY;
@@ -108,7 +99,7 @@ class BoardPainter extends CustomPainter {
       );
     }
 
-    // Vẽ đường path với shadow khi animate
+    // Shadow for animating arrow
     if (isAnimating) {
       final shadowPaint = Paint()
         ..color = Colors.black.withValues(alpha: 0.15 * opacity)
@@ -128,7 +119,7 @@ class BoardPainter extends CustomPainter {
       canvas.drawPath(shadowPath, shadowPaint);
     }
 
-    // Vẽ border (outline trắng)
+    // Border
     final borderPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.3 * opacity)
       ..style = PaintingStyle.stroke
@@ -145,7 +136,7 @@ class BoardPainter extends CustomPainter {
 
     canvas.drawPath(path, borderPaint);
 
-    // Vẽ body chính của arrow
+    // Body
     final bodyPaint = Paint()
       ..color = arrowColor
       ..style = PaintingStyle.stroke
@@ -155,7 +146,7 @@ class BoardPainter extends CustomPainter {
 
     canvas.drawPath(path, bodyPaint);
 
-    // Vẽ arrow head (triangle) tại head
+    // Arrow head
     final head = arrow.getHead();
     final headCenter = Offset(
       head.col * cellSize + animOffsetX,
@@ -169,44 +160,36 @@ class BoardPainter extends CustomPainter {
   void _drawArrowHead(
     Canvas canvas,
     Offset position,
-    dynamic direction,
+    ArrowDirection direction,
     Color color,
     double opacity,
   ) {
-    final arrowSize = cellSize * 0.35; // Kích thước arrow head
+    final arrowSize = cellSize * 0.35;
     final arrowPath = Path();
 
-    // Xác định hướng và vẽ triangle
     final delta = direction.delta;
 
-    // Tính góc xoay dựa trên hướng
     double angle = 0;
     if (delta.col == 1 && delta.row == 0) {
-      // Right
       angle = 0;
     } else if (delta.col == -1 && delta.row == 0) {
-      // Left
-      angle = 3.14159; // 180 degrees
+      angle = 3.14159;
     } else if (delta.col == 0 && delta.row == 1) {
-      // Down
-      angle = 3.14159 / 2; // 90 degrees
+      angle = 3.14159 / 2;
     } else if (delta.col == 0 && delta.row == -1) {
-      // Up
-      angle = -3.14159 / 2; // -90 degrees
+      angle = -3.14159 / 2;
     }
 
-    // Vẽ triangle pointing theo hướng
     canvas.save();
     canvas.translate(position.dx, position.dy);
     canvas.rotate(angle);
 
-    // Triangle shape: pointing right khi angle = 0
-    arrowPath.moveTo(arrowSize * 0.6, 0); // Tip
-    arrowPath.lineTo(-arrowSize * 0.4, -arrowSize * 0.5); // Top corner
-    arrowPath.lineTo(-arrowSize * 0.4, arrowSize * 0.5); // Bottom corner
+    arrowPath.moveTo(arrowSize * 0.6, 0);
+    arrowPath.lineTo(-arrowSize * 0.4, -arrowSize * 0.5);
+    arrowPath.lineTo(-arrowSize * 0.4, arrowSize * 0.5);
     arrowPath.close();
 
-    // Vẽ border trắng
+    // Border
     final borderPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.3 * opacity)
       ..style = PaintingStyle.stroke
@@ -214,7 +197,7 @@ class BoardPainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.miter;
     canvas.drawPath(arrowPath, borderPaint);
 
-    // Vẽ fill
+    // Fill
     final fillPaint = Paint()
       ..color = color
       ..style = PaintingStyle.fill;

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:puzzle/core/utils/logger.dart';
 import 'package:puzzle/models/arrow_enums.dart';
 import 'package:puzzle/models/cell_position.dart';
 import 'package:puzzle/models/complex_arrow.dart';
@@ -30,7 +31,6 @@ void main() {
     test('Two arrows with clear path are solvable', () {
       final board = GameBoard(rows: 10, cols: 10);
 
-      // Arrow 1: pointing right at row 2
       board.arrows.add(
         ComplexArrow(
           id: 0,
@@ -40,7 +40,6 @@ void main() {
         ),
       );
 
-      // Arrow 2: pointing down at column 5
       board.arrows.add(
         ComplexArrow(
           id: 1,
@@ -57,7 +56,6 @@ void main() {
     test('Blocked arrow is not immediately movable', () {
       final board = GameBoard(rows: 10, cols: 10);
 
-      // Arrow 1: pointing right
       board.arrows.add(
         ComplexArrow(
           id: 0,
@@ -67,7 +65,6 @@ void main() {
         ),
       );
 
-      // Arrow 2: blocking arrow 1
       board.arrows.add(
         ComplexArrow(
           id: 1,
@@ -77,7 +74,6 @@ void main() {
         ),
       );
 
-      // Arrow 1 blocked by arrow 2, but arrow 2 can escape
       expect(PuzzleSolver.hasImmediateMove(board), true);
       expect(PuzzleSolver.isSolvable(board), true);
     });
@@ -85,7 +81,6 @@ void main() {
     test('Deadlock: two arrows blocking each other in opposite directions', () {
       final board = GameBoard(rows: 10, cols: 10);
 
-      // Arrow 1: pointing right
       board.arrows.add(
         ComplexArrow(
           id: 0,
@@ -95,7 +90,6 @@ void main() {
         ),
       );
 
-      // Arrow 2: pointing left, directly blocking arrow 1
       board.arrows.add(
         ComplexArrow(
           id: 1,
@@ -105,7 +99,6 @@ void main() {
         ),
       );
 
-      // Both arrows are blocked - this is a deadlock
       expect(PuzzleSolver.hasImmediateMove(board), false);
       expect(PuzzleSolver.hasDeadlock(board), true);
     });
@@ -113,7 +106,6 @@ void main() {
     test('Sequential puzzle: arrow 2 must move first', () {
       final board = GameBoard(rows: 10, cols: 10);
 
-      // Arrow 1: pointing right, blocked by arrow 2
       board.arrows.add(
         ComplexArrow(
           id: 0,
@@ -123,7 +115,6 @@ void main() {
         ),
       );
 
-      // Arrow 2: pointing up, blocking arrow 1's path
       board.arrows.add(
         ComplexArrow(
           id: 1,
@@ -133,7 +124,6 @@ void main() {
         ),
       );
 
-      // Arrow 2 can move first, then arrow 1 can escape
       expect(PuzzleSolver.hasImmediateMove(board), true);
       expect(PuzzleSolver.isSolvable(board), true);
     });
@@ -152,18 +142,14 @@ void main() {
           maxRetries: 30,
         );
 
-        print('Test $i: Generated board with ${board.arrows.length} arrows');
+        logger.i(
+          'Test $i: Generated board with ${board.arrows.length} arrows',
+        );
 
-        // Verify board has arrows
         expect(board.arrows.isNotEmpty, true);
-
-        // Verify at least one arrow can move
         expect(PuzzleSolver.hasImmediateMove(board), true);
-
-        // Verify no deadlock
         expect(PuzzleSolver.hasDeadlock(board), false);
 
-        // Verify full solvability (may take time)
         final isSolvable = PuzzleSolver.isSolvable(board, maxStates: 5000);
         expect(
           isSolvable,
@@ -176,7 +162,6 @@ void main() {
     test('Generated boards with different difficulties', () {
       final generator = LevelGenerator();
 
-      // Easy: few arrows, low density
       final easyBoard = generator.generateBoard(
         rows: 10,
         cols: 10,
@@ -185,9 +170,8 @@ void main() {
         maxRetries: 30,
       );
       expect(PuzzleSolver.isSolvable(easyBoard), true);
-      print('Easy board: ${easyBoard.arrows.length} arrows');
+      logger.i('Easy board: ${easyBoard.arrows.length} arrows');
 
-      // Medium
       final mediumBoard = generator.generateBoard(
         rows: 12,
         cols: 11,
@@ -196,9 +180,8 @@ void main() {
         maxRetries: 30,
       );
       expect(PuzzleSolver.isSolvable(mediumBoard), true);
-      print('Medium board: ${mediumBoard.arrows.length} arrows');
+      logger.i('Medium board: ${mediumBoard.arrows.length} arrows');
 
-      // Hard
       final hardBoard = generator.generateBoard(
         rows: 12,
         cols: 11,
@@ -207,13 +190,11 @@ void main() {
         maxRetries: 50,
       );
       expect(PuzzleSolver.isSolvable(hardBoard), true);
-      print('Hard board: ${hardBoard.arrows.length} arrows');
     });
 
     test('Fallback board should always be solvable', () {
       final generator = LevelGenerator();
 
-      // Simulate fallback by generating simple board
       for (int i = 0; i < 3; i++) {
         final board = generator.generateBoard(
           rows: 10,
@@ -226,9 +207,12 @@ void main() {
         expect(board.arrows.isNotEmpty, true);
         expect(PuzzleSolver.hasImmediateMove(board), true);
 
-        // Even fallback must be solvable
         final isSolvable = PuzzleSolver.isSolvable(board, maxStates: 3000);
-        expect(isSolvable, true, reason: 'Fallback board $i must be solvable');
+        expect(
+          isSolvable,
+          true,
+          reason: 'Fallback board $i must be solvable',
+        );
       }
     });
   });
