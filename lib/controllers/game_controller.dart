@@ -36,20 +36,32 @@ class GameController extends ChangeNotifier {
     if (level <= 5) {
       rows = cols = 10;
       numArrows = 10 + (level * 2); // 12, 14, 16, 18, 20
-      density = 0.60 + (level * 0.02); // 0.62 - 0.70
+      density = 0.55 + (level * 0.02); // 0.57 - 0.65
     } else if (level <= 10) {
       rows = cols = 12;
       numArrows = 18 + ((level - 5) * 2); // 20, 22, 24, 26, 28
-      density = 0.65 + ((level - 5) * 0.02); // 0.67 - 0.75
+      density = 0.60 + ((level - 5) * 0.01); // 0.61 - 0.65
     } else if (level <= 15) {
       rows = cols = 14;
-      numArrows = 24 + ((level - 10) * 3); // 27, 30, 33, 36, 39
-      density = 0.68 + ((level - 10) * 0.02); // 0.70 - 0.78
-    } else {
+      numArrows = 22 + ((level - 10) * 2); // 24, 26, 28, 30, 32
+      density = 0.58 + ((level - 10) * 0.015); // 0.595 - 0.655
+    } else if (level <= 50) {
       rows = cols = 16;
-      numArrows = 35 + ((level - 15) * 3); // 38, 41, 44...
-      density = 0.70 + ((level - 15) * 0.01); // 0.71+
-      if (density > 0.85) density = 0.85; // Cap at 85%
+      numArrows = 28 + ((level - 15) * 2); // 30, 32, 34... up to 98
+      density = 0.60 + ((level - 15) * 0.005); // 0.605 - 0.775
+      if (density > 0.70) density = 0.70; // Cap at 70%
+    } else if (level <= 100) {
+      rows = cols = 16;
+      numArrows = 35 + ((level - 50)); // 36 to 85
+      density = 0.65 + ((level - 50) * 0.003); // 0.653 - 0.803
+      if (density > 0.75) density = 0.75; // Cap at 75%
+    } else {
+      // Level 101-200: Harder configurations
+      rows = cols = 16;
+      numArrows = 40 + ((level - 100)); // 41 to 140
+      density = 0.70 + ((level - 100) * 0.001); // 0.701 - 0.800
+      if (density > 0.80) density = 0.80; // Cap at 80%
+      if (numArrows > 100) numArrows = 100; // Cap arrows
     }
 
     return {
@@ -145,15 +157,11 @@ class GameController extends ChangeNotifier {
     _animatingArrow = arrow;
     _animationPath = List<CellPosition>.from(arrow.segments);
 
-    // Phase 1: Di chuyển cho đến khi head chạm edge
+    // Di chuyển như rắn: head tiếp tục đi, tail theo sau
+    // Khi cell nào ra ngoài board thì xóa cell đó
     while (arrow.segments.isNotEmpty) {
       final head = arrow.getHead();
       final newHead = CellPosition(head.row + delta.row, head.col + delta.col);
-
-      // Nếu head ra ngoài board - bắt đầu escape animation
-      if (!_board!.isInBounds(newHead)) {
-        break;
-      }
 
       // Animate smooth movement
       for (double progress = 0.0; progress <= 1.0; progress += 0.1) {
@@ -165,29 +173,21 @@ class GameController extends ChangeNotifier {
       // Di chuyển kiểu rắn: xóa đuôi, thêm head mới
       final newSegments = List<CellPosition>.from(arrow.segments);
       newSegments.removeAt(0); // Xóa đuôi
-      newSegments.add(newHead); // Thêm head mới
 
-      arrow.segments = newSegments;
-      _animationPath = newSegments;
-      _board!.updateArrow(arrow);
-      _animationProgress = 0.0;
-      notifyListeners();
-    }
-
-    // Phase 2: Từng cell biến mất từ đuôi
-    while (arrow.segments.isNotEmpty) {
-      // Fade out animation
-      for (double progress = 0.0; progress <= 1.0; progress += 0.1) {
-        _animationProgress = progress;
-        notifyListeners();
-        await Future.delayed(const Duration(milliseconds: 3));
+      // Chỉ thêm head mới nếu head hiện tại vẫn còn trong board
+      // Nếu head đã ra ngoài thì chỉ xóa đuôi (arrow đang thoát ra)
+      if (_board!.isInBounds(head)) {
+        newSegments.add(newHead); // Thêm head mới
       }
 
-      arrow.segments.removeAt(0);
-      _animationPath = List<CellPosition>.from(arrow.segments);
+      arrow.segments = newSegments;
+      _animationPath = List<CellPosition>.from(newSegments);
       _board!.updateArrow(arrow);
       _animationProgress = 0.0;
       notifyListeners();
+
+      // Nếu không còn segments nào, thoát khỏi loop
+      if (arrow.segments.isEmpty) break;
     }
 
     // Xóa arrow hoàn toàn

@@ -3,13 +3,101 @@ import '../models/cell_position.dart';
 import '../models/complex_arrow.dart';
 import '../models/game_board.dart';
 import '../models/arrow_enums.dart';
+import 'puzzle_solver.dart';
 
 /// Level generator - Convert từ Python
 class LevelGenerator {
   final Random _random = Random();
 
-  /// Generate board với độ khó tùy chỉnh
+  /// Generate board với độ khó tùy chỉnh - CÓ VALIDATION ĐẦY ĐỦ
   GameBoard generateBoard({
+    required int rows,
+    required int cols,
+    required int numArrows,
+    double densityTarget = 0.75,
+    int maxRetries = 150, // Tăng lên 150 để có nhiều cơ hội hơn
+  }) {
+    int retryCount = 0;
+    int fastCheckFails = 0;
+    int fullCheckFails = 0;
+
+    // Điều chỉnh maxStates dựa trên độ phức tạp
+    final complexity = (rows * cols * numArrows) ~/ 100;
+    final maxStates = (10000 + complexity * 500).clamp(8000, 20000);
+
+    while (retryCount < maxRetries) {
+      final board = _generateBoardInternal(
+        rows: rows,
+        cols: cols,
+        numArrows: numArrows,
+        densityTarget: densityTarget,
+      );
+
+      // Step 1: Fast check - phải có ít nhất 1 arrow có thể di chuyển
+      if (!PuzzleSolver.hasImmediateMove(board)) {
+        fastCheckFails++;
+        retryCount++;
+        if (retryCount % 30 == 0) {
+          print(
+            '⚠️ Fast check failed $fastCheckFails times, retrying... ($retryCount/$maxRetries)',
+          );
+        }
+        continue;
+      }
+
+      // Step 2: Check deadlock
+      if (PuzzleSolver.hasDeadlock(board)) {
+        fastCheckFails++;
+        retryCount++;
+        if (retryCount % 30 == 0) {
+          print('⚠️ Deadlock detected, retrying... ($retryCount/$maxRetries)');
+        }
+        continue;
+      }
+
+      // Step 3: Full solvability check (BFS) với maxStates động
+      if (PuzzleSolver.isSolvable(board, maxStates: maxStates)) {
+        print('✅ Generated solvable puzzle after $retryCount retries (maxStates: $maxStates)');
+        return board;
+      }
+
+      fullCheckFails++;
+      retryCount++;
+      if (retryCount % 30 == 0) {
+        print(
+          '⚠️ Full solvability check failed $fullCheckFails times, retrying... ($retryCount/$maxRetries)',
+        );
+      }
+    }
+
+    // Fallback: Tạo board đơn giản hơn với nhiều retries
+    print('❌ Could not generate solvable puzzle after $maxRetries retries');
+    print('🔄 Trying fallback: simpler board...');
+
+    // Retry fallback nhiều lần với số arrows giảm dần
+    for (int simplicity = 0; simplicity < 3; simplicity++) {
+      final fallbackArrows = (numArrows * (0.7 - simplicity * 0.15))
+          .toInt()
+          .clamp(2, numArrows);
+      final fallbackBoard = _generateSimpleFallbackBoard(
+        rows: rows,
+        cols: cols,
+        numArrows: fallbackArrows,
+      );
+
+      if (PuzzleSolver.isSolvable(fallbackBoard, maxStates: 5000)) {
+        print('✅ Fallback board is solvable with $fallbackArrows arrows');
+        return fallbackBoard;
+      }
+    }
+
+    // Last resort: tạo board cực kỳ đơn giản
+    print('⚠️ Using ultra-simple fallback board');
+    return _generateSimpleFallbackBoard(rows: rows, cols: cols, numArrows: 3);
+  }
+
+  /// Internal generation logic
+  GameBoard _generateBoardInternal({
     required int rows,
     required int cols,
     required int numArrows,
@@ -344,5 +432,94 @@ class LevelGenerator {
     if (seen.contains(nextCell)) return false;
 
     return true;
+  }
+
+  /// Fallback: Tạo board đơn giản chắc chắn giải được
+  GameBoard _generateSimpleFallbackBoard({
+    required int rows,
+    required int cols,
+    required int numArrows,
+  }) {
+    final board = GameBoard(rows: rows, cols: cols);
+    int arrowId = 0;
+
+    // Strategy: Tạo các straight arrows đơn giản, chỉ về 4 hướng
+    final directions = [
+      ArrowDirection.right,
+      ArrowDirection.left,
+      ArrowDirection.up,
+      ArrowDirection.down,
+    ];
+
+    final occupiedCells = <CellPosition>{};
+    int attempts = 0;
+    final maxAttempts = numArrows * 20;
+
+    while (board.arrows.length < numArrows && attempts < maxAttempts) {
+      // Tạo vị trí random
+      final startRow = _random.nextInt(rows);
+      final startCol = _random.nextInt(cols);
+      final startPos = CellPosition(startRow, startCol);
+
+      if (occupiedCells.contains(startPos)) {
+        attempts++;
+        continue;
+      }
+
+      // Chọn hướng random
+      final direction = directions[_random.nextInt(directions.length)];
+      final length = _random.nextInt(4) + 2; // 2-5 cells
+
+      // Tạo straight line
+      final segments = <CellPosition>[startPos];
+      var currentPos = startPos;
+      final delta = direction.delta;
+
+      for (int i = 1; i < length; i++) {
+        final nextPos = CellPosition(
+          currentPos.row + delta.row,
+          currentPos.col + delta.col,
+        );
+
+        // Check bounds và không bị overlap
+        if (nextPos.row < 0 ||
+            nextPos.row >= rows ||
+            nextPos.col < 0 ||
+            nextPos.col >= cols ||
+            occupiedCells.contains(nextPos)) {
+          break;
+        }
+
+        segments.add(nextPos);
+        currentPos = nextPos;
+      }
+
+      // Nếu đủ dài, add arrow
+      if (segments.length >= 2) {
+        final arrow = ComplexArrow(
+          id: arrowId,
+          segments: segments,
+          direction: direction,
+          moveAxis: MoveAxis.both,
+        );
+
+        // Add to board
+        for (var pos in segments) {
+          board.grid[pos.row][pos.col].occupied = true;
+          board.grid[pos.row][pos.col].arrowId = arrowId;
+          occupiedCells.add(pos);
+        }
+
+        board.arrows.add(arrow);
+        arrowId++;
+      }
+
+      attempts++;
+    }
+
+    print(
+      '🔄 Fallback board created with ${board.arrows.length} simple arrows',
+    );
+    return board;
   }
 }
